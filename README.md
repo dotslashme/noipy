@@ -13,6 +13,7 @@ Insert values for username and password into the variables called noip_username 
 Set the host names for the hosts you need to update into the host_names list.
 
 Example:
+
   noip_username = 'username'
   noip_password = 'password'
   host_names = ['example.org', 'example.com', 'example.net']
