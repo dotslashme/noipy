@@ -19,5 +19,5 @@ Example:
 ```python
   noip_username = 'username'
   noip_password = 'password'
-  host_names = ['example.org', 'example.com', 'example.net']
+  noip_hostnames = ['example.org', 'server.example.org' 'example.com', 'example.net']
 ```

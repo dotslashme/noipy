@@ -11,7 +11,10 @@ from datetime import datetime, timedelta
 
 noip_username = ''  # Your no-ip.com username/email
 noip_password = ''  # Your no-ip.com password
-host_names = ['']  # The host or hosts to update
+noip_hostnames = ['']  # The host or hosts to update
+
+ip_cache_file = '/tmp/ip.noipy'
+quarantine_file = '/tmp/quarantine.noipy'
 
 
 def get_external_ip():
@@ -45,7 +48,7 @@ def update_api(ip):
     user_agent = 'NoIpy ddns update client/0.0.1 christian@dotslashme.com'
 
     headers = {'user-agent': user_agent}
-    payload = {'myip': ip, 'hostname': host_names}
+    payload = {'myip': ip, 'hostname': noip_hostnames}
 
     try:
         response = requests.get(
@@ -68,9 +71,9 @@ def check_response(response, ip):
 
 
 def process_success(response, ip):
-    fp = open('/tmp/ip.noipy', 'w')
-    fp.write(ip)
-    fp.close()
+    with open(ip_cache_file, 'w') as fh:
+        print(ip, end='', file=fh)
+
     print('The job completed successfully')
 
 
@@ -95,31 +98,28 @@ def process_error(response):
 
 
 def is_quarantined():
-    quarantine_file = '/tmp/quarantined.noipy'
-
     if os.path.isfile(quarantine_file):
         if os.stat(quarantine_file).st_size == 0:
             return True
         else:
-            fh = open(quarantine_file, 'r')
-            data = fh.read()
+            with open(quarantine_file, 'r') as fh:
+                quarantined_until = datetime.strptime(
+                    fh.read(), '%Y-%m-%d %H:%M:%S.%f'
+                )
+
             now = datetime.now()
-            quarantined_until = datetime.strptime(data, '%Y-%m-%d %H:%M:%S.%f')
 
             if quarantined_until < now:
-                fh.close()
                 os.remove(quarantine_file)
                 return False
-            else:
-                fh.close()
-                return True
+
+            return True
 
 
 def quarantine_client(time=None):
-    fp = open('/tmp/quarantined.noipy', 'w')
-    if time is not None:
-        fp.write(time)
-    fp.close()
+    with open(quarantine_file, 'w') as fh:
+        if time is not None:
+            print(time, end='', file=fh)
 
 
 if __name__ == '__main__':
@@ -128,5 +128,12 @@ if __name__ == '__main__':
     else:
         data = get_external_ip()
         ip = parse_data_to_ip(data)
+        if os.path.isfile(ip_cache_file):
+            with open(ip_cache_file, 'r') as fh:
+                if fh.read() == ip:
+                    print('Recorded IP is the same as current IP,\
+                        skipping update')
+                    exit()
+
         response = update_api(ip)
         check_response(response, ip)
