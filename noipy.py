@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 
 ''' Left to do:
         - implement logging
-        - implement tmp file to avoid unneccessary api updates
 '''
 
 noip_username = ''  # Your no-ip.com username/email
