@@ -1,24 +1,30 @@
+import logging
 import re
 import requests
 import os
 from datetime import datetime, timedelta
 
 
-''' Left to do:
-        - implement logging
-'''
-
-noip_username = ''  # Your no-ip.com username/email
-noip_password = ''  # Your no-ip.com password
-noip_hostnames = ['']  # The host or hosts to update
+noip_username = ''      # Your no-ip.com username/email
+noip_password = ''      # Your no-ip.com password
+noip_hostnames = ['']   # The host or hosts to update
 
 ip_cache_file = '/tmp/ip.noipy'
 quarantine_file = '/tmp/quarantine.noipy'
 
 
-def get_external_ip():
-    '''Get the external ip of the client'''
+logger = logging.getLogger('NoIpy')
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
+
+def get_external_ip():
     ip_resolvers = [
         'http://icanhazip.com/'
     ]
@@ -27,7 +33,7 @@ def get_external_ip():
         try:
             response = requests.get(resolver)
         except requests.exceptions.RequestException as e:
-            print(e)
+            logger.warn('Could not get IP, caught exception {}'.format(e))
             continue
         else:
             data = response.text
@@ -57,7 +63,7 @@ def update_api(ip):
             auth=(noip_username, noip_password)
         )
     except requests.exceptions.RequestException as e:
-        print(e)
+        logger.debug('Could not update API, caugh exception {}'.format(e))
     else:
         return response.text
 
@@ -73,24 +79,36 @@ def process_success(response, ip):
     with open(ip_cache_file, 'w') as fh:
         print(ip, end='', file=fh)
 
-    print('The job completed successfully')
+    logger.info('The job completed successfully')
 
 
 def process_error(response):
     if 'nohost' in response:
-        print('There is no DNS record for one or more hostnames. Check config')
+        logger.warn(
+            'There is no DNS record for one or more hostnames. Check config'
+        )
     elif 'badauth' in response:
-        print('The supplied credentials seems to be invalid. Check config')
+        logger.warn(
+            'The supplied credentials seems to be invalid. Check config'
+        )
     elif 'badagent' in response:
-        print('This update agent has been banned, setting up quarantine')
+        logger.error(
+            'This update agent has been banned, setting up quarantine'
+        )
         quarantine_client()
     elif '!donator' in response:
-        print('Update operation not supported by your subscription')
+        logger.warn(
+            'Update operation not supported by your subscription'
+        )
     elif 'abuse' in response:
-        print('Abuse reported for this user, setting up quarantine')
+        logger.error(
+            'Abuse reported for this user, setting up quarantine'
+        )
         quarantine_client()
     else:  # 911
-        print('The noip server has issues, setting temporary quarantine')
+        logger.warn(
+            'The noip server has issues, setting temporary quarantine'
+        )
         now = datetime.now()
         quarantined_until = now + timedelta(minutes=45)
         quarantine_client(str(quarantined_until))
@@ -123,15 +141,16 @@ def quarantine_client(time=None):
 
 if __name__ == '__main__':
     if is_quarantined():
-        print('This client has been quarantined - exiting')
+        logger.error('This client has been quarantined - exiting')
     else:
         data = get_external_ip()
         ip = parse_data_to_ip(data)
         if os.path.isfile(ip_cache_file):
             with open(ip_cache_file, 'r') as fh:
                 if fh.read() == ip:
-                    print('Recorded IP is the same as current IP,\
-                        skipping update')
+                    logger.info(
+                        'Recorded IP is the same as current IP, no update'
+                    )
                     exit()
 
         response = update_api(ip)
