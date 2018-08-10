@@ -6,12 +6,16 @@ This script serves the purpose of updating DNS entries with noip.com
 ## Requirements
 
 - Python 3
-- Python 3 requests
+- Python modules
+  - requests
+  - logging
+  - re
+  - os
+  - datetime
 
 ## Flaws
 The current flaws include, but are not limited to:
 
-- Printing to the terminal
 - Lookup can be done better
 
 ## Configuration
