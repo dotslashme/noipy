@@ -6,7 +6,7 @@ services:
     command: "/bin/sh -c 'while :; do python /noipy.py; sleep 5m & wait $${!}; done;'"
     restart: on-failure
     environment:
-      - NOIP_HOSTS=storage.dotslashme.com
+      - NOIP_HOSTS=domain1.tld,domain2.tld
     secrets:
       - noip-username
       - noip-password
