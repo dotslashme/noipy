@@ -4,10 +4,20 @@ import requests
 import os
 from datetime import datetime, timedelta
 
-
 noip_username = ''      # Your no-ip.com username/email
 noip_password = ''      # Your no-ip.com password
 noip_hostnames = ['']   # The host or hosts to update
+
+if os.path.isfile('/run/secrets/noip-username'):
+    with open('/run/secrets/noip-username', 'r') as noipuser:
+        noip_username = noipuser.read()
+
+if os.path.isfile('/run/secrets/noip-password'):
+    with open('/run/secrets/noip-password', 'r') as noippass:
+        noip_password = noippass.read()
+
+if "NOIP_HOSTS" in os.environ:
+    noip_hostnames = list(os.environ['NOIP_HOSTS'].split(','))
 
 ip_cache_file = '/tmp/ip.noipy'
 quarantine_file = '/tmp/quarantine.noipy'
@@ -23,7 +33,6 @@ formatter = logging.Formatter(
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-
 def get_external_ip():
     ip_resolvers = [
         'http://icanhazip.com/'
@@ -33,7 +42,7 @@ def get_external_ip():
         try:
             response = requests.get(resolver)
         except requests.exceptions.RequestException as e:
-            logger.warn('Could not get IP, caught exception {}'.format(e))
+            logger.warning('Could not get IP, caught exception {}'.format(e))
             continue
         else:
             data = response.text
@@ -84,11 +93,11 @@ def process_success(response, ip):
 
 def process_error(response):
     if 'nohost' in response:
-        logger.warn(
+        logger.warning(
             'There is no DNS record for one or more hostnames. Check config'
         )
     elif 'badauth' in response:
-        logger.warn(
+        logger.warning(
             'The supplied credentials seems to be invalid. Check config'
         )
     elif 'badagent' in response:
@@ -97,7 +106,7 @@ def process_error(response):
         )
         quarantine_client()
     elif '!donator' in response:
-        logger.warn(
+        logger.warning(
             'Update operation not supported by your subscription'
         )
     elif 'abuse' in response:
@@ -106,7 +115,7 @@ def process_error(response):
         )
         quarantine_client()
     else:  # 911
-        logger.warn(
+        logger.warning(
             'The noip server has issues, setting temporary quarantine'
         )
         now = datetime.now()

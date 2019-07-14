@@ -1,0 +1,12 @@
+version: '3.7'
+
+services:
+  noipy:
+    image: dotslashme/noipy
+    command: "/bin/sh -c 'while :; do python /noipy.py; sleep 5m & wait $${!}; done;'"
+    restart: on-failure
+    environment:
+      - NOIP_HOSTS=storage.dotslashme.com
+    secrets:
+      - noip-username
+      - noip-password
